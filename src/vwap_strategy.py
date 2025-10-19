@@ -13,15 +13,28 @@ class VWAPStrategy:
     
     def generate_signals(self, df: pd.DataFrame, asset: str = "default") -> pd.DataFrame:
         """Generate trading signals using VWAP + Initial Balance"""
-        config = STRATEGY_CONFIG.get(asset, STRATEGY_CONFIG["default"])
+        # Merge default config with asset-specific config
+        default_config = STRATEGY_CONFIG["default"]
+        asset_config = STRATEGY_CONFIG.get(asset, {})
+        config = {**default_config, **asset_config}
         
         # Your existing strategy logic here
         df = df.copy()
         df['vwap'] = self.calculate_vwap(df)
         
-        # Session grouping (your existing logic)
-        session_anchor = pd.to_timedelta(config["session_start"])
-        df["session_date"] = (df.index - session_anchor).date
+        # FIXED: Session grouping - use time directly, not timedelta
+        # Create session date based on the session start time
+        session_start_time = pd.to_datetime(config["session_start"]).time()
+        df["session_date"] = df.index.normalize()  # Start with regular date
+        
+        # Adjust session date for sessions that cross midnight
+        early_hours = df.index.time < pd.to_datetime("12:00").time()
+        late_hours = df.index.time >= session_start_time
+        
+        # If session crosses midnight, adjust dates for early hours
+        if pd.to_datetime(config["session_end"]).time() < session_start_time:
+            # Session crosses midnight - early hours belong to previous session
+            df.loc[early_hours, "session_date"] = df.loc[early_hours].index.normalize() - pd.Timedelta(days=1)
         
         signals = []
         
@@ -44,12 +57,16 @@ class VWAPStrategy:
             
             # Trading signals (your existing logic)
             trading_candles = session_data.between_time(config["ib_end"], config["session_end"])
+            if trading_candles.empty:
+                continue
+                
+            trading_candles = trading_candles.copy()
             trading_candles["vwap"] = self.calculate_vwap(trading_candles)
             
             trade_entered = False
             for index, row in trading_candles.iterrows():
                 if trade_entered:
-                break
+                    break
                     
                 close_price = row["close"]
                 current_vwap = row["vwap"]
