@@ -1,11 +1,69 @@
 from fastapi import APIRouter, HTTPException, Query
-from typing import List, Dict, Any
 import pandas as pd
 from datetime import datetime
 from ..cache import get_from_cache, save_to_cache
 from ..components import data_loader, strategy as vwap_strategy, backtester, analyzer
-
 router = APIRouter()
+
+@router.get("/compare")
+async def compare_assets(lookback: int = Query(100, ge=1, le=10000)):
+    import traceback
+
+    print(f"🔎 Starting compare_assets with lookback={lookback}")
+    try:
+        assets_data = data_loader.load_all_assets()
+        print(f"✅ Loaded assets: {list(assets_data.keys())}")
+
+        all_results = {}
+
+        for asset, data in assets_data.items():
+            print(f"➡ Processing {asset}")
+            df_subset = data.tail(lookback)
+
+            vwap_series = vwap_strategy.calculate_vwap(df_subset)
+            print(f"   VWAP calculated for {asset}: len={len(vwap_series)}")
+
+            signals_data = []
+            for idx, row in df_subset.iterrows():
+                if idx not in vwap_series.index:
+                    continue
+                vwap_value = vwap_series.loc[idx]
+                if pd.isna(vwap_value):
+                    continue
+                if row['close'] > vwap_value and row['close'] > row['open']:
+                    signals_data.append({'timestamp': idx, 'asset': asset, 'signal': 'LONG', 'price': row['close'], 'vwap': vwap_value})
+                elif row['close'] < vwap_value and row['close'] < row['open']:
+                    signals_data.append({'timestamp': idx, 'asset': asset, 'signal': 'SHORT', 'price': row['close'], 'vwap': vwap_value})
+
+            print(f"   Signals count: {len(signals_data)}")
+
+            if not signals_data:
+                continue
+
+            signals = pd.DataFrame(signals_data)
+            print(f"   🧠 Running backtest for {asset}...")
+            results = backtester.run_backtest(signals, df_subset, asset)
+            print(f"   ✅ Backtest done for {asset}, type={type(results)}")
+
+            all_results[asset] = results
+
+        print("📊 Running analyzer.compare_assets ...")
+        comparison_df = analyzer.compare_assets(all_results)
+        print("✅ Comparison done")
+
+        result = comparison_df.to_dict(orient="records")
+        print("🗄️ Saving to cache ...")
+        save_to_cache(f"compare_{lookback}", result)
+        print("✅ Done successfully")
+
+        return result
+
+    except Exception as e:
+        print("❌ Exception caught in compare_assets():", e)
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error comparing assets: {str(e)}")
+
+
 
 @router.get("/{asset}")
 async def run_backtest(
@@ -148,64 +206,3 @@ async def get_metrics(asset: str, lookback: int = Query(100, ge=1, le=10000)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error calculating metrics: {str(e)}")
 
-@router.get("/compare")
-async def compare_assets(lookback: int = Query(100, ge=1, le=10000)):
-    """Compare performance across all assets"""
-    cache_key = f"compare_{lookback}"
-    cached_data = get_from_cache(cache_key)
-    if cached_data:
-        return cached_data
-    
-    try:
-        assets_data = data_loader.load_all_assets()
-        all_results = {}
-        
-        for asset, data in assets_data.items():
-            df_subset = data.tail(lookback)
-            
-            # Створюємо сигнали на основі VWAP
-            vwap_series = vwap_strategy.calculate_vwap(df_subset)
-            
-            signals_data = []
-            for idx, row in df_subset.iterrows():
-                if idx not in vwap_series.index:
-                    continue
-                    
-                vwap_value = vwap_series.loc[idx]
-                if pd.isna(vwap_value):
-                    continue
-                    
-                if row['close'] > vwap_value and row['close'] > row['open']:
-                    signals_data.append({
-                        'timestamp': idx,
-                        'asset': asset,
-                        'signal': 'LONG',
-                        'price': row['close'],
-                        'vwap': vwap_value
-                    })
-                elif row['close'] < vwap_value and row['close'] < row['open']:
-                    signals_data.append({
-                        'timestamp': idx,
-                        'asset': asset,
-                        'signal': 'SHORT',
-                        'price': row['close'],
-                        'vwap': vwap_value
-                    })
-            
-            signals = pd.DataFrame(signals_data)
-            
-            if not signals.empty:
-                # Run backtest
-                results = backtester.run_backtest(signals, df_subset, asset)
-                all_results[asset] = results
-        
-        # Compare assets
-        comparison_df = analyzer.compare_assets(all_results)
-        result = comparison_df.to_dict(orient="records")
-        
-        # Cache the result
-        save_to_cache(cache_key, result)
-        
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error comparing assets: {str(e)}")
