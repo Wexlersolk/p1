@@ -11,9 +11,9 @@
   - Query параметри:
     - `limit` - Кількість останніх записів для повернення (за замовчуванням 100)
 #### Приклад asset:
-- `Binance_BTC_Spot_binance_spot_1d`
-- `Coinbase_ETH_Spot_coinbase_spot_1h`
-- `OKX_Futures_okx_futures_5m`
+- `Binance_Futures_BTC_1d`
+- `Coinbase_Spot_ETH_1h`
+- `OKX_Futures_BTC_5m`
 ### Стратегії
 
 - `GET /api/v1/strategies` - Отримати список усіх доступних стратегій
