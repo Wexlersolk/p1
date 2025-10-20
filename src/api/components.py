@@ -17,7 +17,6 @@ print(f"🔍 Path exists: {os.path.exists(data_path)}")
 if os.path.exists(data_path):
     print(f"🔍 Directory contents: {os.listdir(data_path)}")
 
-# Ініціалізуйте з абсолютним шляхом
 data_loader = DataLoader(data_folder=data_path)
 strategy = VWAPStrategy()
 backtester = BacktestEngine()
