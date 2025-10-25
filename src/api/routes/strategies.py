@@ -1,110 +1,68 @@
 from fastapi import APIRouter, HTTPException, Query
-from typing import List, Dict, Any
-import pandas as pd
-from ..cache import get_from_cache, save_to_cache
-from ..components import data_loader, strategy as vwap_strategy
-from datetime import datetime
+from ...api.strategies import registry
 
-router = APIRouter()
+router = APIRouter(prefix="/api/v1/strategies", tags=["strategies"])
 
 @router.get("/")
-async def list_strategies():
-    """List all available strategies"""
-    # Currently only VWAP is implemented, but can be expanded
-    return ["vwap"]
-
-@router.get("/vwap/signals/{asset}")
-async def generate_vwap_signals(
-    asset: str, 
-    lookback: int = Query(100, ge=1, le=1000)
-):
-    """Generate VWAP signals for a specific asset"""
-    cache_key = f"vwap_signals_{asset}_{lookback}"
-    cached_data = get_from_cache(cache_key)
-    if cached_data:
-        return cached_data
-    
-    try:
-        # Import the function used in original code
-        from ...vwap_strategy import VWAPStrategy
-        
-        assets_data = data_loader.load_all_assets()
-        if asset not in assets_data:
-            raise HTTPException(status_code=404, detail=f"Asset {asset} not found")
-        
-        df = assets_data[asset]
-        
-        # Використовуємо публічні методи класу VWAPStrategy
-        vwap = vwap_strategy.calculate_vwap(df.tail(lookback))
-        
-        # Створюємо спрощений результат, оскільки оригінальна функція generate_signals не доступна
-        result = []
-        for idx, row in df.tail(lookback).iterrows():
-            vwap_value = vwap.loc[idx] if idx in vwap.index else None
-            if vwap_value is not None and not pd.isna(vwap_value):
-                signal = None
-                if row['close'] > vwap_value and row['close'] > row['open']:
-                    signal = 'LONG'
-                elif row['close'] < vwap_value and row['close'] < row['open']:
-                    signal = 'SHORT'
-                
-                if signal:
-                    result.append({
-                        'timestamp': idx.isoformat(),
-                        'asset': asset,
-                        'signal': signal,
-                        'price': row['close'],
-                        'vwap': vwap_value
-                    })
-        
-        # Cache the result
-        save_to_cache(cache_key, result)
-        
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generating signals: {str(e)}")
-
-@router.get("/vwap/parameters")
-async def get_vwap_parameters():
-    """Get VWAP strategy parameters"""
-    from ...config import STRATEGY_CONFIG
-    
+async def get_all_strategies():
+    """Get all available strategies"""
+    strategies = registry.list_strategies()
     return {
-        "default": STRATEGY_CONFIG["default"],
-        "assets": {k: v for k, v in STRATEGY_CONFIG.items() if k != "default"}
+        "strategies": strategies,
+        "count": len(strategies),
+        "categories": {
+            "core": registry.get_strategies_by_type("core"),
+            "ml_validated": registry.get_strategies_by_type("ml_validated"),
+            "ensemble": registry.get_strategies_by_type("ensemble")
+        }
     }
 
-@router.get("/vwap/calculation/{asset}")
-async def get_vwap_calculation(
-    asset: str,
-    lookback: int = Query(100, ge=1, le=1000)
-):
-    """Get VWAP calculation for a specific asset"""
-    cache_key = f"vwap_calc_{asset}_{lookback}"
-    cached_data = get_from_cache(cache_key)
-    if cached_data:
-        return cached_data
+@router.get("/{strategy_id}")
+async def get_strategy_info(strategy_id: str):
+    """Get detailed information about a specific strategy"""
+    strategy_info = registry.get_strategy_info(strategy_id)
+    if not strategy_info:
+        raise HTTPException(status_code=404, detail=f"Strategy '{strategy_id}' not found")
     
+    return {
+        "strategy_id": strategy_id,
+        "name": strategy_info["name"],
+        "description": strategy_info["description"],
+        "parameters": strategy_info["parameters"]
+    }
+
+@router.get("/{strategy_id}/signals/{asset}")
+async def get_strategy_signals(
+    strategy_id: str,
+    asset: str,
+    lookback: int = Query(100, description="Number of records to analyze"),
+    # You can add strategy parameters as query parameters
+):
+    """Get signals for a specific strategy and asset"""
     try:
-        assets_data = data_loader.load_all_assets()
-        if asset not in assets_data:
-            raise HTTPException(status_code=404, detail=f"Asset {asset} not found")
-        
-        df = assets_data[asset].tail(lookback).copy()
-        df['vwap'] = vwap_strategy.calculate_vwap(df)
-        
-        result = []
-        for idx, row in df.iterrows():
-            if not pd.isna(row['vwap']):
-                result.append({
-                    'timestamp': idx.isoformat(),
-                    'close': row['close'],
-                    'vwap': row['vwap']
-                })
-        
-        # Cache the result
-        save_to_cache(cache_key, result)
-        
-        return result
+        # This would need to integrate with your data loader
+        # For now, return strategy info
+        strategy_info = registry.get_strategy_info(strategy_id)
+        return {
+            "strategy": strategy_id,
+            "asset": asset,
+            "lookback": lookback,
+            "parameters": strategy_info["parameters"] if strategy_info else {}
+        }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error calculating VWAP: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/train/{strategy_id}")
+async def train_strategy_model(strategy_id: str, asset: str = "XAUUSD"):
+    """Train ML model for a strategy (async endpoint)"""
+    try:
+        # In production, you'd want to run this in background
+        from ...train_models import train_signal_validator
+        train_signal_validator(strategy_id, asset)
+        
+        return {
+            "message": f"Training initiated for {strategy_id} on {asset}",
+            "status": "success"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
