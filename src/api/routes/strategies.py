@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Query
-from ...api.strategies import registry
+from src.api.strategies import registry
 
 router = APIRouter(prefix="/api/v1/strategies", tags=["strategies"])
 

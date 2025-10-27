@@ -1,6 +1,6 @@
 import pandas as pd
 from typing import Dict
-from .api.strategies import registry
+from src.api.strategies import registry
 
 class BacktestEngine:
     def __init__(self, initial_capital: float = 10000):

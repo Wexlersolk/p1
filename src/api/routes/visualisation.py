@@ -1,9 +1,9 @@
 from fastapi import APIRouter, HTTPException, Query
 from typing import Dict, Any
 
-# Import visualization components - fix the import path
-from ...visualization.strategy_dashboard import StrategyDashboard
-from ...visualization.confidence_analysis import ConfidenceAnalysis
+from src.visualisation.strategy_dashboard import StrategyDashboard
+from src.visualisation.confidence_analysis import ConfidenceAnalysis
+from src.visualisation.signal_timeline import SignalTimeline
 from ...visualization.signal_timeline import SignalTimeline
 
 router = APIRouter(prefix="/api/v1/visualization", tags=["visualization"])
