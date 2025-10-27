@@ -1,9 +1,23 @@
 from fastapi import APIRouter, HTTPException, Query
 import pandas as pd
 from datetime import datetime
+import math
 from ..cache import get_from_cache, save_to_cache
 from ..components import data_loader, strategy as vwap_strategy, backtester, analyzer
 router = APIRouter()
+
+
+
+def sanitize_for_json(obj):
+    if isinstance(obj, dict):
+        return {k: sanitize_for_json(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [sanitize_for_json(v) for v in obj]
+    elif isinstance(obj, float):
+        if math.isinf(obj) or math.isnan(obj):
+            return None
+        return obj
+    return obj
 
 @router.get("/compare")
 async def compare_assets(lookback: int = Query(100, ge=1, le=10000)):
@@ -52,6 +66,8 @@ async def compare_assets(lookback: int = Query(100, ge=1, le=10000)):
         print("✅ Comparison done")
 
         result = comparison_df.to_dict(orient="records")
+        result = sanitize_for_json(result)  # sanitize before returning
+
         print("🗄️ Saving to cache ...")
         save_to_cache(f"compare_{lookback}", result)
         print("✅ Done successfully")
