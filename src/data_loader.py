@@ -1,10 +1,11 @@
 import pandas as pd
 import os
-from typing import Dict
+from typing import Dict, List, Set
 import glob
 
 class DataLoader:
     def __init__(self, data_folder: str = None):
+        self._all_files = []  # Cached list of all files
         # If no data folder specified, try to find it automatically
         if data_folder is None:
             # First, try relative to current directory (for running from root)
@@ -75,3 +76,43 @@ class DataLoader:
             print(f"⚠️  NaN values found in {asset}")
         
         return True
+
+    def get_available_exchanges(self) -> List[str]:
+        """Get list of unique exchanges in the data folder"""
+        if not os.path.exists(self.data_folder):
+            print(f"❌ Data folder not found: {self.data_folder}")
+            return []
+        
+        if not self._all_files:
+            self._all_files = glob.glob(os.path.join(self.data_folder, "**/*.csv"), recursive=True)
+        
+        exchanges = set()
+        
+        for file_path in self._all_files:
+            rel_path = os.path.relpath(file_path, self.data_folder)
+            parts = rel_path.split(os.sep)
+            
+            if len(parts) > 1:
+                exchanges.add(parts[0])
+        
+        return sorted(list(exchanges))
+    
+    def get_available_timeframes(self) -> List[str]:
+        """Get list of unique timeframes in the data folder"""
+        if not os.path.exists(self.data_folder):
+            print(f"❌ Data folder not found: {self.data_folder}")
+            return []
+        
+        if not self._all_files:
+            self._all_files = glob.glob(os.path.join(self.data_folder, "**/*.csv"), recursive=True)
+        
+        timeframes = set()
+        
+        for file_path in self._all_files:
+            file_name = os.path.basename(file_path)
+            
+            for tf in ["5m", "15m", "1h", "4h", "1d", "1w"]:
+                if tf in file_name:
+                    timeframes.add(tf)
+        
+        return sorted(list(timeframes))
