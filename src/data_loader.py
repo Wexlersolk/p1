@@ -9,13 +9,13 @@ class DataLoader:
         # If no data folder specified, try to find it automatically
         if data_folder is None:
             # First, try relative to current directory (for running from root)
-            if os.path.exists("data"):
-                self.data_folder = "data"
+            if os.path.exists("data_many"):
+                self.data_folder = "data_many"
             # Then try going up one level (for running from src/)
-            elif os.path.exists("../data"):
-                self.data_folder = "../data"
+            elif os.path.exists("../data_many"):
+                self.data_folder = "../data_many"
             else:
-                self.data_folder = "data"  # Default, will show error if not found
+                self.data_folder = "data_many"  # Default, will show error if not found
         else:
             self.data_folder = data_folder
         
@@ -45,22 +45,65 @@ class DataLoader:
                 file_name = os.path.basename(file_path)
                 asset_name = file_name.replace('.csv', '').replace('_5M', '')
 
-                # Read CSV and handle datetime/timestamp column
-                # First, read columns only
-                cols = pd.read_csv(file_path, nrows=0).columns
-                if 'datetime' in cols:
-                    df = pd.read_csv(file_path, parse_dates=['datetime'], index_col='datetime')
-                elif 'timestamp' in cols:
-                    df = pd.read_csv(file_path, parse_dates=['timestamp'], index_col='timestamp')
+                # Read CSV - first check what columns exist
+                sample_df = pd.read_csv(file_path, nrows=1)
+                
+                # Determine time column
+                time_column = None
+                if 'datetime' in sample_df.columns:
+                    time_column = 'datetime'
+                elif 'timestamp' in sample_df.columns:
+                    time_column = 'timestamp'
+                elif 'time' in sample_df.columns:
+                    time_column = 'time'
+                elif 'date' in sample_df.columns:
+                    time_column = 'date'
+                
+                if time_column:
+                    # Read the full CSV
+                    df = pd.read_csv(file_path)
+                    
+                    # Check if timestamp is numeric (Unix timestamp)
+                    if pd.api.types.is_numeric_dtype(df[time_column]):
+                        # Determine if milliseconds or seconds
+                        sample_value = df[time_column].iloc[0]
+                        
+                        if sample_value > 1e12:  # Bigger than 1 trillion = milliseconds
+                            print(f"   Converting Unix timestamp (ms) to datetime for {asset_name}")
+                            df[time_column] = pd.to_datetime(df[time_column], unit='ms')
+                        elif sample_value > 1e9:  # Bigger than 1 billion = seconds
+                            print(f"   Converting Unix timestamp (s) to datetime for {asset_name}")
+                            df[time_column] = pd.to_datetime(df[time_column], unit='s')
+                        else:
+                            # Might be already datetime or other format
+                            df[time_column] = pd.to_datetime(df[time_column])
+                    else:
+                        # String datetime format
+                        df[time_column] = pd.to_datetime(df[time_column])
+                    
+                    # Set as index
+                    df.set_index(time_column, inplace=True)
+                    
+                    # Sort by index
+                    df.sort_index(inplace=True)
+                    
+                    # Remove duplicate indices
+                    df = df[~df.index.duplicated(keep='first')]
+                    
                 else:
-                    df = pd.read_csv(file_path)  # fallback, no datetime/timestamp column
+                    # No time column found, just load as-is
+                    print(f"⚠️  No time column found in {file_name}, loading without datetime index")
+                    df = pd.read_csv(file_path)
 
                 assets_data[asset_name] = df
                 print(f"✅ Loaded {asset_name} with {len(df)} rows from {file_path}")
-
+                if isinstance(df.index, pd.DatetimeIndex) and len(df) > 0:
+                    print(f"   Date range: {df.index[0]} to {df.index[-1]}")
                 
             except Exception as e:
                 print(f"❌ Error loading {file_path}: {e}")
+                import traceback
+                traceback.print_exc()
         
         return assets_data
     
