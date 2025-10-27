@@ -1,46 +1,24 @@
-import pandas as pd
-from src.data_loader import DataLoader
-from src.vwap_strategy import VWAPStrategy
-from src.backtest_engine import BacktestEngine
-from src.results_analyzer import ResultsAnalyzer
+import uvicorn
+from .app import app
+import os
 
-def main():
-    print("🚀 Starting Multi-Asset VWAP Backtest...")
+def start_server():
+    """Start the FastAPI server on port 8080"""
+    print("🚀 Starting Financial Analytics API Server...")
+    print("📊 Available endpoints:")
+    print("   http://localhost:8080/docs - API Documentation")
+    print("   http://localhost:8080/api/v1/visualization/strategy-dashboard/XAUUSD")
+    print("   http://localhost:8080/api/v1/visualization/confidence-analysis/vwap_strategy/XAUUSD")
+    print("   http://localhost:8080/api/v1/visualization/signal-timeline/vwap_strategy/XAUUSD")
+    print("\n⏳ Starting server...")
     
-    # Load data
-    loader = DataLoader()
-    assets_data = loader.load_all_assets()
-    
-    # Initialize components
-    strategy = VWAPStrategy()
-    backtester = BacktestEngine()
-    analyzer = ResultsAnalyzer()
-    
-    # Run backtest for each asset
-    all_results = {}
-    
-    for asset, data in assets_data.items():
-        print(f"\n📊 Backtesting {asset}...")
-        
-        # Generate signals
-        signals = strategy.generate_signals(data, asset)
-        print(f"   Generated {len(signals)} signals")
-        
-        # Run backtest
-        results = backtester.run_backtest(signals, data, asset)
-        all_results[asset] = results
-        
-        if 'trades' in results:
-            print(f"   Completed {len(results['trades'])} trades")
-            print(f"   Total Return: {results['total_return']:.2f}%")
-    
-    # Compare all assets
-    print("\n" + "="*50)
-    print("📈 COMPARISON ACROSS ALL ASSETS")
-    print("="*50)
-    
-    comparison_df = analyzer.compare_assets(all_results)
-    print(comparison_df.to_string(index=False))
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=8080,
+        reload=True,  # Auto-reload on code changes
+        log_level="info"
+    )
 
 if __name__ == "__main__":
-    main()
+    start_server()
