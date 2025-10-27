@@ -41,9 +41,23 @@ class DataLoader:
         
         for file_path in set(csv_files):  # Remove duplicates
             try:
-                # Extract asset name from file path
-                file_name = os.path.basename(file_path)
-                asset_name = file_name.replace('.csv', '').replace('_5M', '')
+                # Extract asset name from FULL PATH, not just filename
+                # Convert path like: data_many/Coinbase/Futures/BTC/1d.csv
+                # Into asset name: Coinbase_Futures_BTC_1d
+                
+                rel_path = os.path.relpath(file_path, self.data_folder)
+                
+                # Remove .csv extension
+                rel_path_no_ext = rel_path.replace('.csv', '')
+                
+                # Replace path separators with underscores
+                asset_name = rel_path_no_ext.replace(os.sep, '_').replace('/', '_').replace('\\', '_')
+                
+                # Clean up any double underscores
+                while '__' in asset_name:
+                    asset_name = asset_name.replace('__', '_')
+                
+                print(f"📊 Processing: {rel_path} → {asset_name}")
 
                 # Read CSV - first check what columns exist
                 sample_df = pd.read_csv(file_path, nrows=1)
@@ -69,10 +83,10 @@ class DataLoader:
                         sample_value = df[time_column].iloc[0]
                         
                         if sample_value > 1e12:  # Bigger than 1 trillion = milliseconds
-                            print(f"   Converting Unix timestamp (ms) to datetime for {asset_name}")
+                            print(f"   Converting Unix timestamp (ms) to datetime")
                             df[time_column] = pd.to_datetime(df[time_column], unit='ms')
                         elif sample_value > 1e9:  # Bigger than 1 billion = seconds
-                            print(f"   Converting Unix timestamp (s) to datetime for {asset_name}")
+                            print(f"   Converting Unix timestamp (s) to datetime")
                             df[time_column] = pd.to_datetime(df[time_column], unit='s')
                         else:
                             # Might be already datetime or other format
@@ -92,11 +106,11 @@ class DataLoader:
                     
                 else:
                     # No time column found, just load as-is
-                    print(f"⚠️  No time column found in {file_name}, loading without datetime index")
+                    print(f"⚠️  No time column found, loading without datetime index")
                     df = pd.read_csv(file_path)
 
                 assets_data[asset_name] = df
-                print(f"✅ Loaded {asset_name} with {len(df)} rows from {file_path}")
+                print(f"✅ Loaded {asset_name} with {len(df)} rows")
                 if isinstance(df.index, pd.DatetimeIndex) and len(df) > 0:
                     print(f"   Date range: {df.index[0]} to {df.index[-1]}")
                 
@@ -104,6 +118,9 @@ class DataLoader:
                 print(f"❌ Error loading {file_path}: {e}")
                 import traceback
                 traceback.print_exc()
+        
+        print(f"\n📋 Total assets loaded: {len(assets_data)}")
+        print(f"📋 Asset names: {list(assets_data.keys())}")
         
         return assets_data
     
