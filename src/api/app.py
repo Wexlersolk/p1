@@ -1,30 +1,48 @@
-from fastapi import FastAPI, APIRouter
-from .config import API_PREFIX
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from .routes import routers
 
-# Import route modules
-from .routes.assets import router as assets_router
-from .routes.strategies import router as strategies_router
-from .routes.backtest import router as backtest_router
+# Create FastAPI app
+app = FastAPI(
+    title="Financial Analytics API",
+    description="Real-time financial data analysis and ML-powered trading strategies",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc"
+)
 
-def create_app():
-    """Create and configure a FastAPI application"""
-    app = FastAPI(
-        title="Financial Market Prediction API",
-        description="API for predicting financial market movements using VWAP and other strategies",
-        version="1.0.0",
-    )
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-    # Include all routers
-    app.include_router(assets_router, prefix=f"{API_PREFIX}/assets", tags=["Assets"])
-    app.include_router(strategies_router, prefix=f"{API_PREFIX}/strategies", tags=["Strategies"])
-    app.include_router(backtest_router, prefix=f"{API_PREFIX}/backtest", tags=["Backtesting"])
+# Include all routers
+for router in routers:
+    app.include_router(router)
 
-    @app.get("/", tags=["Root"])
-    async def root():
-        return {
-            "message": "Welcome to the Financial Market Prediction API",
+# Health check endpoint
+@app.get("/")
+async def root():
+    return {
+        "message": "Financial Analytics API Server",
+        "status": "running",
+        "version": "1.0.0"
+    }
+
+@app.get("/health")
+async def health_check():
+    return {
+        "status": "healthy",
+        "message": "Server is running normally",
+        "endpoints": {
             "docs": "/docs",
-            "version": "1.0.0"
+            "assets": "/api/v1/assets",
+            "backtest": "/api/v1/backtest",
+            "strategies": "/api/v1/strategies", 
+            "visualization": "/api/v1/visualization"
         }
-
-    return app
+    }

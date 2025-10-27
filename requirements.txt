@@ -1,8 +1,9 @@
-fastapi==0.103.1
-uvicorn==0.23.2
-pandas==2.1.0
-numpy==1.26.0
-python-dateutil==2.8.2
-pydantic==2.4.0
-pytz==2023.3
-pandas
+pandas>=1.5.0
+numpy>=1.21.0
+fastapi>=0.104.0
+uvicorn>=0.24.0
+scikit-learn>=1.0.0
+xgboost>=1.5.0
+joblib>=1.2.0
+plotly>=5.0.0
+python-multipart>=0.0.6
