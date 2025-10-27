@@ -19,13 +19,13 @@ def start_server():
     print("   http://localhost:8080/api/v1/assets - List all assets")
     print("   http://localhost:8080/api/v1/strategies - List all strategies")
     print("   http://localhost:8080/api/v1/visualization/strategy-dashboard/XAUUSD - Strategy Dashboard")
-    print("\n⏳ Starting server on http://0.0.0.0:8080 ...")
+    print("\n⏳ Starting server on http://localhost:8080 ...")
     
     uvicorn.run(
         app,
         host="0.0.0.0",
         port=8080,
-        reload=True,
+        # reload=True,
         log_level="info"
     )
 
