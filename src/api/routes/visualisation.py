@@ -1,13 +1,10 @@
 from fastapi import APIRouter, HTTPException, Query
-from typing import Dict, Any
 import traceback
 from src.visualisation.strategy_dashboard import StrategyDashboard
 from src.visualisation.confidence_analysis import ConfidenceAnalysis
 from src.visualisation.signal_timeline import SignalTimeline
-import pandas as pd
 
 router = APIRouter(prefix="/api/v1/visualization", tags=["visualization"])
-import pprint
 
 def deep_inspect(obj, path="root"):
     if isinstance(obj, dict):
@@ -95,9 +92,9 @@ async def get_confidence_analysis(
 ):
     """Get ML confidence analysis for a specific strategy"""
     try:
-        analysis = ConfidenceAnalysis()
-        result = analysis.generate_analysis(strategy_id, asset, days)
-        return result
+           analysis = ConfidenceAnalysis()
+           result = analysis.generate_analysis(strategy_id, asset, days)
+           return sanitize_for_json(result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating confidence analysis: {str(e)}")
 
