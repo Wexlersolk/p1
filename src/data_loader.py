@@ -43,10 +43,20 @@ class DataLoader:
                 # Extract asset name from file path
                 file_name = os.path.basename(file_path)
                 asset_name = file_name.replace('.csv', '').replace('_5M', '')
-                
-                df = pd.read_csv(file_path, parse_dates=['datetime'], index_col='datetime')
+
+                # Read CSV and handle datetime/timestamp column
+                # First, read columns only
+                cols = pd.read_csv(file_path, nrows=0).columns
+                if 'datetime' in cols:
+                    df = pd.read_csv(file_path, parse_dates=['datetime'], index_col='datetime')
+                elif 'timestamp' in cols:
+                    df = pd.read_csv(file_path, parse_dates=['timestamp'], index_col='timestamp')
+                else:
+                    df = pd.read_csv(file_path)  # fallback, no datetime/timestamp column
+
                 assets_data[asset_name] = df
                 print(f"✅ Loaded {asset_name} with {len(df)} rows from {file_path}")
+
                 
             except Exception as e:
                 print(f"❌ Error loading {file_path}: {e}")
