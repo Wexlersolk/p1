@@ -141,23 +141,6 @@ class StrategyRegistry:
                 "take_profit": {"type": "percent", "default": 1.5, "min": 0.5, "max": 10.0}
             }
         )
-        
-        # ========== ENSEMBLE STRATEGIES ==========
-        
-        # Multi-Strategy Ensemble (Basic)
-        self.register(
-            "ensemble_basic",
-            SignalValidatorStrategy,  # Note: You might want to create a dedicated EnsembleStrategy class
-            "Basic Ensemble",
-            "Combines multiple strategies with ML validation",
-            {
-                "base_strategy": {"type": "string", "default": "vwap_ib", "options": ["vwap_ib", "sma_crossover", "rsi_oversold"], "description": "Primary strategy for ensemble"},
-                "confidence_threshold": {"type": "float", "default": 0.60, "min": 0.5, "max": 0.95, "description": "Minimum ML confidence to accept signal"},
-                "ensemble_mode": {"type": "select", "default": "weighted", "options": ["weighted", "majority", "consensus"], "description": "How to combine multiple strategies"},
-                "stop_loss": {"type": "percent", "default": 0.75, "min": 0.1, "max": 5.0},
-                "take_profit": {"type": "percent", "default": 1.5, "min": 0.5, "max": 10.0}
-            }
-        )
     
     def register(self, strategy_id: str, strategy_class, name: str, description: str, parameters: dict):
         """Register a new strategy"""

@@ -9,7 +9,7 @@ import os
 from typing import Dict, List, Tuple
 
 class SignalClassifier:
-    """ML model to validate trading signals"""
+    """ML model to validate trading signals with enhanced error handling"""
     
     def __init__(self, model_type: str = "random_forest"):
         self.model_type = model_type
@@ -47,7 +47,7 @@ class SignalClassifier:
             self.model = RandomForestClassifier(random_state=42)
     
     def prepare_training_data(self, historical_signals: pd.DataFrame, historical_data: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series]:
-        """Prepare training data from historical signals and outcomes"""
+        """Prepare training data from historical signals and outcomes with error handling"""
         from .feature_engineer import FeatureEngineer
         
         feature_engineer = FeatureEngineer()
@@ -55,29 +55,32 @@ class SignalClassifier:
         labels = []
         
         for _, signal in historical_signals.iterrows():
-            # Get market context features at signal time
-            market_features = feature_engineer.create_market_context_features(
-                historical_data, signal['timestamp']
-            )
-            
-            # Get strategy-specific features
-            strategy_features = feature_engineer.create_strategy_specific_features(
-                historical_data, signal, signal.get('strategy_type', 'vwap_ib')
-            )
-            
-            # Combine all features
-            all_features = {**market_features, **strategy_features}
-            
-            if all_features:
-                features_list.append(all_features)
+            try:
+                # Get market context features at signal time
+                market_features = feature_engineer.create_market_context_features(
+                    historical_data, signal['timestamp']
+                )
                 
-                # Label: 1 if trade was profitable, 0 otherwise
-                # For now, we'll use a placeholder - you'll need to compute actual PnL
-                label = self.calculate_signal_success(signal, historical_data)
-                labels.append(label)
+                # Get strategy-specific features
+                strategy_features = feature_engineer.create_strategy_specific_features(
+                    historical_data, signal, signal.get('strategy_type', 'vwap_ib')
+                )
+                
+                # Combine all features
+                all_features = {**market_features, **strategy_features}
+                
+                if all_features:
+                    features_list.append(all_features)
+                    
+                    # Label: 1 if trade was profitable, 0 otherwise
+                    label = self.calculate_signal_success(signal, historical_data)
+                    labels.append(label)
+            except Exception as e:
+                print(f"⚠️  Skipping signal due to error: {e}")
+                continue
         
         # Create DataFrame
-        if features_list:
+        if features_list and labels:
             X = pd.DataFrame(features_list)
             y = pd.Series(labels, dtype=int)
             self.feature_names = X.columns.tolist()
@@ -132,18 +135,24 @@ class SignalClassifier:
         return 0
     
     def train(self, historical_signals: pd.DataFrame, historical_data: pd.DataFrame, test_size: float = 0.2):
-        """Train the signal classifier model"""
+        """Train the signal classifier model with enhanced error handling"""
         print("🏋️ Training Signal Classifier...")
         
         # Prepare training data
         X, y = self.prepare_training_data(historical_signals, historical_data)
         
         if X.empty or y.empty:
-            print("❌ No training data available")
+            print("❌ No training data available after preprocessing")
+            return
+        
+        # Check if we have enough samples for both classes
+        class_counts = y.value_counts()
+        if len(class_counts) < 2:
+            print(f"❌ Insufficient class diversity. Only one class present: {class_counts.to_dict()}")
             return
         
         print(f"📊 Training on {len(X)} samples with {len(self.feature_names)} features")
-        print(f"📈 Class distribution: {y.value_counts().to_dict()}")
+        print(f"📈 Class distribution: {class_counts.to_dict()}")
         
         # Split data
         X_train, X_test, y_train, y_test = train_test_split(
@@ -188,21 +197,21 @@ class SignalClassifier:
         
         feature_engineer = FeatureEngineer()
         
-        # Create features for current signal
-        market_features = feature_engineer.create_market_context_features(current_data)
-        strategy_features = feature_engineer.create_strategy_specific_features(
-            current_data, signal, strategy_type
-        )
-        
-        all_features = {**market_features, **strategy_features}
-        
-        # Ensure we have all expected features
-        feature_vector = []
-        for feature_name in self.feature_names:
-            feature_vector.append(all_features.get(feature_name, 0.0))
-        
-        # Make prediction
         try:
+            # Create features for current signal
+            market_features = feature_engineer.create_market_context_features(current_data)
+            strategy_features = feature_engineer.create_strategy_specific_features(
+                current_data, signal, strategy_type
+            )
+            
+            all_features = {**market_features, **strategy_features}
+            
+            # Ensure we have all expected features
+            feature_vector = []
+            for feature_name in self.feature_names:
+                feature_vector.append(all_features.get(feature_name, 0.0))
+            
+            # Make prediction
             confidence = self.model.predict_proba([feature_vector])[0][1]  # Probability of class 1 (success)
             return float(confidence)
         except Exception as e:

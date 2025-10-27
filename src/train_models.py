@@ -20,7 +20,7 @@ def ensure_models_directory():
     return models_dir
 
 def train_signal_validator(strategy_id: str, asset: str = "XAUUSD"):
-    """Train signal validator for a specific strategy"""
+    """Train signal validator for a specific strategy with error handling"""
     print(f"🎯 Training Signal Validator for {strategy_id} on {asset}")
     
     # Load data - let DataLoader auto-detect the path
@@ -51,19 +51,26 @@ def train_signal_validator(strategy_id: str, asset: str = "XAUUSD"):
         # Add strategy type to signals for feature engineering
         historical_signals['strategy_type'] = strategy_id
         
-        # Train signal classifier
+        # Train signal classifier with error handling
         classifier = SignalClassifier(model_type="random_forest")
-        classifier.train(historical_signals, data)
         
-        # Save model
-        models_dir = ensure_models_directory()
-        model_path = os.path.join(models_dir, f"signal_classifier_{strategy_id}.pkl")
-        classifier.save_model(model_path)
-        
-        print(f"✅ Signal validator training completed for {strategy_id}")
+        try:
+            classifier.train(historical_signals, data)
+            
+            # Save model
+            models_dir = ensure_models_directory()
+            model_path = os.path.join(models_dir, f"signal_classifier_{strategy_id}.pkl")
+            classifier.save_model(model_path)
+            
+            print(f"✅ Signal validator training completed for {strategy_id}")
+            
+        except Exception as e:
+            print(f"❌ Error during ML training for {strategy_id}: {e}")
+            print("💡 This might be due to insufficient data or feature calculation issues")
+            return
         
     except Exception as e:
-        print(f"❌ Error training {strategy_id}: {e}")
+        print(f"❌ Error generating signals for {strategy_id}: {e}")
         import traceback
         traceback.print_exc()
 
@@ -74,11 +81,16 @@ def train_all_strategies():
     
     strategies_to_train = ["vwap_ib", "sma_crossover", "rsi_oversold"]
     
+    successful = 0
     for strategy_id in strategies_to_train:
-        train_signal_validator(strategy_id)
+        try:
+            train_signal_validator(strategy_id)
+            successful += 1
+        except Exception as e:
+            print(f"❌ Failed to train {strategy_id}: {e}")
         print("-" * 40)
     
-    print("🎉 All model training completed!")
+    print(f"🎉 Training completed! {successful}/{len(strategies_to_train)} strategies trained successfully!")
 
 if __name__ == "__main__":
     train_all_strategies()
