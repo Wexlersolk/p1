@@ -6,7 +6,7 @@ import sys
 import os
 
 # Add src to path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+# sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from api.strategies import registry
 from backtest_engine import BacktestEngine
@@ -43,8 +43,9 @@ class ConfidenceAnalysis:
         
         # Check if ML confidence data exists
         if "ml_confidence" not in trades_df.columns:
-            raise ValueError(f"Strategy {strategy_id} does not have ML confidence data")
-        
+            # Return basic analysis WITHOUT throwing error
+            return self._generate_basic_analysis(trades_df, strategy_id, asset, days)
+    
         # Generate analysis
         charts = self._create_confidence_charts(trades_df, strategy_id)
         metrics = self._calculate_confidence_metrics(trades_df)
@@ -213,7 +214,28 @@ class ConfidenceAnalysis:
                 })
         
         return bucket_metrics
-    
+    def _generate_basic_analysis(self, trades_df: pd.DataFrame, strategy_id: str, asset: str, days: int) -> Dict[str, Any]:
+        """Generate basic analysis for strategies without ML data"""
+        
+        return {
+            "has_ml_data": False,
+            "charts": {},
+            "metrics": {
+                "overall": {
+                    "total_trades": len(trades_df),
+                    "win_rate": len(trades_df[trades_df["pnl"] > 0]) / len(trades_df) * 100
+                }
+            },
+            "insights": [{
+                "type": "info",
+                "title": "No ML Data",
+                "message": f"Strategy '{strategy_id}' does not generate ML confidence scores"
+            }],
+            "strategy": strategy_id,
+            "asset": asset,
+            "total_trades": len(trades_df),
+            "period_days": days
+        }
     def _generate_confidence_insights(self, metrics: Dict, strategy_id: str):
         """Generate insights from confidence analysis"""
         insights = []
