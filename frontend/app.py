@@ -9,6 +9,7 @@ import plotly.express as px
 import base64
 import numpy as np
 from datetime import datetime, timedelta
+import os
 
 # Конфігурація сторінки
 st.set_page_config(
@@ -51,7 +52,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Базовий URL API
-API_BASE_URL = "http://localhost:8080"
+API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8080")
 
 # Заголовок
 st.markdown('<h1 class="main-header">🎯 Trading Analytics Dashboard</h1>', unsafe_allow_html=True)
