@@ -1,11 +1,14 @@
 from fastapi import APIRouter, HTTPException, Query
+from typing import Dict, Any
 import traceback
 from src.visualisation.strategy_dashboard import StrategyDashboard
 from src.visualisation.confidence_analysis import ConfidenceAnalysis
 from src.visualisation.signal_timeline import SignalTimeline
+import pandas as pd
 import json
 
 router = APIRouter(prefix="/api/v1/visualization", tags=["visualization"])
+import pprint
 
 def deep_inspect(obj, path="root"):
     if isinstance(obj, dict):
@@ -24,6 +27,7 @@ def deep_inspect(obj, path="root"):
             print(f"{path}: empty list")
     else:
         print(f"{path}: {type(obj)}")
+
 
 def sanitize_for_json(obj):
     import pandas as pd
@@ -218,11 +222,41 @@ async def get_strategy_dashboard(
             }
         
         return sanitized_result
+        
     except Exception as e:
-
         print("❌ Error in get_strategy_dashboard:", e)
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error generating dashboard: {str(e)}")
+
+@router.get("/available-strategies")
+async def get_available_strategies():
+    """Get list of available strategies with ML support"""
+    try:
+        # Створюємо тестовий дашборд для перевірки
+        dashboard = StrategyDashboard()
+        result = dashboard.generate_dashboard("XAUUSD", 7, 10000)
+        
+        available_strategies = []
+        
+        if 'metrics' in result:
+            for strategy_id in result['metrics'].keys():
+                # Перевіряємо чи є ML метрики для кожної стратегії
+                strategy_metrics = result['metrics'][strategy_id]
+                has_ml = any('ml' in key.lower() for key in strategy_metrics.keys())
+                
+                available_strategies.append({
+                    'strategy_id': strategy_id,
+                    'has_ml_data': has_ml,
+                    'metrics_available': list(strategy_metrics.keys())
+                })
+        
+        return {
+            "available_strategies": available_strategies,
+            "total_strategies": len(available_strategies)
+        }
+        
+    except Exception as e:
+        return {"error": str(e)}
 
 @router.get("/confidence-analysis/{strategy_id}/{asset}")
 async def get_confidence_analysis(
@@ -236,7 +270,7 @@ async def get_confidence_analysis(
            result = analysis.generate_analysis(strategy_id, asset, days)
            return sanitize_for_json(result)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generating confidence analysis: {str(e)}")
+        return {"error": str(e), "traceback": traceback.format_exc()}
 
 @router.get("/signal-timeline/{strategy_id}/{asset}")
 async def get_signal_timeline(
@@ -277,3 +311,41 @@ async def get_signal_timeline(
         print(f"❌ Error in signal timeline: {e}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error generating signal timeline: {str(e)}")
+
+
+@router.get("/test-serialization/{asset}")
+async def test_serialization(asset: str):
+    """Test endpoint to check what data types are causing issues"""
+    try:
+        dashboard = StrategyDashboard()
+        result = dashboard.generate_dashboard(asset, 7, 10000)  # Менше днів для швидшого тесту
+        
+        def find_problematic_types(obj, path="root"):
+            problematic = []
+            
+            if isinstance(obj, dict):
+                for k, v in obj.items():
+                    problematic.extend(find_problematic_types(v, f"{path}.{k}"))
+            elif isinstance(obj, (list, tuple)):
+                for i, item in enumerate(obj[:5]):  # Перевіряємо тільки перші 5 елементів
+                    problematic.extend(find_problematic_types(item, f"{path}[{i}]"))
+            else:
+                # Перевіряємо, чи можна серіалізувати цей об'єкт
+                try:
+                    json.dumps(obj)
+                except:
+                    problematic.append(f"{path}: {type(obj)} - {str(obj)[:100]}")
+            
+            return problematic
+        
+        issues = find_problematic_types(result)
+        
+        return {
+            "asset": asset,
+            "total_issues": len(issues),
+            "issues": issues[:10],  # Повертаємо тільки перші 10 проблем
+            "result_keys": list(result.keys()) if isinstance(result, dict) else "Not a dict"
+        }
+        
+    except Exception as e:
+        return {"error": str(e)}
