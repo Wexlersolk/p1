@@ -229,32 +229,27 @@ async def get_strategy_dashboard(
         raise HTTPException(status_code=500, detail=f"Error generating dashboard: {str(e)}")
 
 @router.get("/available-strategies")
-async def get_available_strategies():
+async def get_available_strategies(
+    asset: str = Query("Cryptocom_Spot_BTC_1h", description="Asset to check available strategies for")
+):
     """Get list of available strategies with ML support"""
     try:
-        # Створюємо тестовий дашборд для перевірки
         dashboard = StrategyDashboard()
-        result = dashboard.generate_dashboard("XAUUSD", 7, 10000)
-        
+        result = dashboard.generate_dashboard(asset, 7, 10000)
         available_strategies = []
-        
         if 'metrics' in result:
             for strategy_id in result['metrics'].keys():
-                # Перевіряємо чи є ML метрики для кожної стратегії
                 strategy_metrics = result['metrics'][strategy_id]
                 has_ml = any('ml' in key.lower() for key in strategy_metrics.keys())
-                
                 available_strategies.append({
                     'strategy_id': strategy_id,
                     'has_ml_data': has_ml,
                     'metrics_available': list(strategy_metrics.keys())
                 })
-        
         return {
             "available_strategies": available_strategies,
             "total_strategies": len(available_strategies)
         }
-        
     except Exception as e:
         return {"error": str(e)}
 
