@@ -190,6 +190,7 @@ async def get_strategy_dashboard(
 ):
     """Get comprehensive strategy performance dashboard"""
     try:
+
         dashboard = StrategyDashboard()
         result = dashboard.generate_dashboard(asset, days, initial_capital)
         
@@ -268,55 +269,6 @@ async def get_confidence_analysis(
            analysis = ConfidenceAnalysis()
            result = analysis.generate_analysis(strategy_id, asset, days)
            return sanitize_for_json(result)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generating confidence analysis: {str(e)}")
-
-@router.get("/debug-ml-data/{strategy_id}/{asset}")
-async def debug_ml_data(
-    strategy_id: str,
-    asset: str,
-    days: int = Query(7, description="Number of days to analyze")
-):
-    """Debug endpoint to inspect ML data structure"""
-    try:
-        analysis = ConfidenceAnalysis()
-        result = analysis.generate_analysis(strategy_id, asset, days)
-        
-        # Аналізуємо структуру даних
-        debug_info = {
-            "result_type": type(result).__name__,
-            "result_keys": list(result.keys()) if isinstance(result, dict) else "Not a dict",
-            "charts_keys": list(result.get('charts', {}).keys()) if isinstance(result, dict) and 'charts' in result else "No charts",
-            "metrics_keys": list(result.get('metrics', {}).keys()) if isinstance(result, dict) and 'metrics' in result else "No metrics",
-            "ml_metrics": result.get('ml_model_metrics', {}) if isinstance(result, dict) else "No ML metrics"
-        }
-        
-        # Перевіряємо проблемні типи даних
-        def find_complex_types(obj, path="root"):
-            complex_types = []
-            
-            if isinstance(obj, dict):
-                for k, v in obj.items():
-                    complex_types.extend(find_complex_types(v, f"{path}.{k}"))
-            elif isinstance(obj, (list, tuple)):
-                for i, item in enumerate(obj[:3]):  # Перевіряємо тільки перші 3 елементи
-                    complex_types.extend(find_complex_types(item, f"{path}[{i}]"))
-            else:
-                # Знаходимо складні типи
-                if hasattr(obj, '__dict__') or hasattr(obj, 'to_dict') or hasattr(obj, 'to_plotly_json'):
-                    complex_types.append(f"{path}: {type(obj)}")
-            
-            return complex_types
-        
-        complex_types = find_complex_types(result)
-        
-        return {
-            "debug_info": debug_info,
-            "complex_types_found": complex_types[:10],  # Перші 10 складних типів
-            "total_complex_types": len(complex_types),
-            "sample_sanitized": improved_sanitize_for_json(result) if len(complex_types) > 0 else "No complex types"
-        }
-        
     except Exception as e:
         return {"error": str(e), "traceback": traceback.format_exc()}
 
