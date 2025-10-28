@@ -20,19 +20,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include all routers
-for router in routers:
-    app.include_router(router)
-
-# Health check endpoint
-@app.get("/")
-async def root():
-    return {
-        "message": "Financial Analytics API Server",
-        "status": "running",
-        "version": "1.0.0"
-    }
-
 @app.get("/health")
 async def health_check():
     return {
@@ -46,3 +33,18 @@ async def health_check():
             "visualization": "/api/v1/visualization"
         }
     }
+
+
+# Include all routers
+for router in routers:
+    app.include_router(router)
+
+# Health check endpoint
+@app.get("/")
+async def root():
+    return {
+        "message": "Financial Analytics API Server",
+        "status": "running",
+        "version": "1.0.0"
+    }
+

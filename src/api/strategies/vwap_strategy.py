@@ -24,9 +24,29 @@ class VWAPStrategy(BaseStrategy):
         SESSION_END_UTC = pd.to_datetime(self.parameters["session_end"]).time()
         SESSION_ANCHOR = pd.to_timedelta(self.parameters["session_start"] + ":00")
         
+        """Generate trading signals using VWAP + Initial Balance"""
+        
+        print(f"\n{'='*60}")
+        print(f"🔍 VWAP+IB Strategy Debug for {asset}")
+        print(f"{'='*60}")
         df = df.copy()
         df["session_date"] = (df.index - SESSION_ANCHOR).date
         
+        if not isinstance(df.index, pd.DatetimeIndex):
+            print("⚠️  Converting index to DatetimeIndex")
+            if df.index.dtype in ['int64', 'float64']:
+                sample_value = df.index[0]
+                if sample_value > 1e12:
+                    df.index = pd.to_datetime(df.index, unit='ms')
+                else:
+                    df.index = pd.to_datetime(df.index, unit='s')
+            else:
+                df.index = pd.to_datetime(df.index)
+        
+        print(f"📊 Data info:")
+        print(f"   Rows: {len(df)}")
+        print(f"   Date range: {df.index[0]} to {df.index[-1]}")
+
         signals = []
         daily_groups = df.groupby(df["session_date"])
 
@@ -82,4 +102,30 @@ class VWAPStrategy(BaseStrategy):
                     })
                     trade_entered = True
         
+        if signals:
+            from ..models.signal_classifier import SignalClassifier
+            import os
+            
+            # Завантажити ML модель
+            # project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')) #Correct, but commented due to error
+            project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', )) #TODO: Fix ml
+            model_path = os.path.join(project_root, 'models', 'signal_classifier_vwap_ib.pkl')
+            if os.path.exists(model_path):
+                try:
+                    classifier = SignalClassifier()
+                    classifier.load_model(model_path)
+                    
+                    # Додати ML confidence до кожного сигналу
+                    for signal in signals:
+                        signal['ml_confidence'] = classifier.predict_confidence(
+                            signal, df, 'vwap_ib'
+                        )
+                    
+                    print(f"✅ ML validation added to {len(signals)} signals")
+                except Exception as e:
+                    print(f"⚠️  ML model loading failed: {e}")
+                    # Продовжуємо без ML
+            else:
+                print(f"⚠️  ML model not found at {model_path}")
+
         return pd.DataFrame(signals)

@@ -68,11 +68,15 @@ class ResultsAnalyzer:
                 if 'trades' in result and result['trades']:
                     print(f"Asset {asset} has {len(result['trades'])} trades")
                     
+                    # 🔧 Конвертація у список словників, якщо потрібно
+                    if isinstance(result['trades'], pd.DataFrame):
+                        print(f"Converting trades DataFrame to list for {asset}")
+                        result['trades'] = result['trades'].to_dict(orient='records')
+
                     # Debug first trade
-                    if len(result['trades']) > 0:
-                        first_trade = result['trades'][0]
-                        print(f"First trade keys: {list(first_trade.keys())}")
-                    
+                    first_trade = result['trades'][0]
+                    print(f"First trade keys: {list(first_trade.keys())}")
+
                     metrics = ResultsAnalyzer.calculate_metrics(result['trades'])
                     metrics['asset'] = asset
                     comparison.append(metrics)
