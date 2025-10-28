@@ -52,14 +52,15 @@ async def get_strategy_signals(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/train/{strategy_id}")
-async def train_strategy_model(strategy_id: str, asset: str = "XAUUSD"):
+@router.post("/train/{strategy_id}/{asset}")
+async def train_strategy_model(
+    strategy_id: str,
+    asset: str
+):
     """Train ML model for a strategy (async endpoint)"""
     try:
-        # In production, you'd want to run this in background
         from src.train_models import train_signal_validator
         train_signal_validator(strategy_id, asset)
-        
         return {
             "message": f"Training initiated for {strategy_id} on {asset}",
             "status": "success"

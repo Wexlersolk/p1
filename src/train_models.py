@@ -19,7 +19,7 @@ def ensure_models_directory():
     os.makedirs(models_dir, exist_ok=True)
     return models_dir
 
-def train_signal_validator(strategy_id: str, asset: str = "XAUUSD"):
+def train_signal_validator(strategy_id: str, asset: str):
     """Train signal validator for a specific strategy with error handling"""
     print(f"🎯 Training Signal Validator for {strategy_id} on {asset}")
     
