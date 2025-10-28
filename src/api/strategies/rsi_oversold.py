@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from .base_strategy import BaseStrategy
+from src.api.models.signal_classifier import SignalClassifier
 
 class RSIStrategy(BaseStrategy):
     """RSI Oversold/Overbought Strategy"""

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Query
-from ...api.strategies import registry
+from src.api.strategies import registry
 
 router = APIRouter(prefix="/api/v1/strategies", tags=["strategies"])
 
@@ -57,7 +57,7 @@ async def train_strategy_model(strategy_id: str, asset: str = "XAUUSD"):
     """Train ML model for a strategy (async endpoint)"""
     try:
         # In production, you'd want to run this in background
-        from ...train_models import train_signal_validator
+        from src.train_models import train_signal_validator
         train_signal_validator(strategy_id, asset)
         
         return {

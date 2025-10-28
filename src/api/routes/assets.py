@@ -3,9 +3,9 @@ from typing import List, Dict, Any
 import pandas as pd
 from datetime import datetime
 import time
-from ...data_loader import DataLoader
-from ..cache import get_from_cache, save_to_cache
-from ..components import data_loader  # Використовуємо спільний екземпляр DataLoader
+from src.data_loader import DataLoader
+from src.api.cache import get_from_cache, save_to_cache
+from src.api.components import data_loader  # Використовуємо спільний екземпляр DataLoader
 
 router = APIRouter()
 

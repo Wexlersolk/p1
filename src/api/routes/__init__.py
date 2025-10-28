@@ -1,7 +1,7 @@
 from .assets import router as assets_router
 from .backtest import router as backtest_router
 from .strategies import router as strategies_router
-from .visualization import router as visualization_router  # NEW
+from .visualisation import router as visualization_router  # NEW
 
 # Include all routers
 routers = [
