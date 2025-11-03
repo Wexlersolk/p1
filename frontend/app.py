@@ -110,7 +110,7 @@ with st.sidebar:
             step=100
         )
     
-    if page in ["Backtesting", "Asset Comparison", "Strategy Library"]:
+    if page in ["Backtesting", "Asset Comparison", "Strategy Library", "Asset Analysis"]:
         # Отримуємо список стратегій
         @st.cache_data(ttl=3600)
         def fetch_all_strategies():
