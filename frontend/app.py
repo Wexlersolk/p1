@@ -110,7 +110,7 @@ with st.sidebar:
             step=100
         )
     
-    if page in ["Backtesting", "Asset Comparison", "Strategy Library"]:
+    if page in ["Backtesting", "Asset Comparison", "Strategy Library", "Asset Analysis"]:
         # Отримуємо список стратегій
         @st.cache_data(ttl=3600)
         def fetch_all_strategies():
@@ -170,9 +170,7 @@ def train_strategy_model(strategy_id, asset):
     """Train ML model for a strategy"""
     try:
         response = requests.post(
-            f"{API_BASE_URL}/api/v1/strategies/train/{strategy_id}",
-            params={"asset": asset},
-            timeout=30
+            f"{API_BASE_URL}/api/v1/strategies/train/{strategy_id}/{asset}", timeout=30
         )
         response.raise_for_status()
         return response.json()
