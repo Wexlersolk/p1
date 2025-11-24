@@ -27,19 +27,18 @@ async def health_check():
         "message": "Server is running normally",
         "endpoints": {
             "docs": "/docs",
-            "assets": "/api/v1/assets",
-            "backtest": "/api/v1/backtest",
-            "strategies": "/api/v1/strategies", 
-            "visualization": "/api/v1/visualization"
+            "health": "/health",
+            "backtest": "/backtest/{asset}",
+            "backtest_compare": "/backtest/compare",
+            "backtest_ai_status": "/backtest/debug/ai-status",
+            "backtest_strategies": "/backtest/strategies/available"
         }
     }
-
 
 # Include all routers
 for router in routers:
     app.include_router(router)
 
-# Health check endpoint
 @app.get("/")
 async def root():
     return {
@@ -47,4 +46,3 @@ async def root():
         "status": "running",
         "version": "1.0.0"
     }
-
