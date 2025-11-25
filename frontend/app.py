@@ -903,7 +903,6 @@ def show_market_overview_page():
                 if confidence_data:
                     st.json(confidence_data)
 
-# Сторінка Backtesting
 # Сторінка Backtesting - ВИПРАВЛЕНА ВЕРСІЯ
 def show_backtesting_page():
     st.markdown("## 🤖 Backtesting Engine")
@@ -1053,6 +1052,7 @@ def show_asset_analysis_page():
                     st.json(confidence_data)
 
 # Сторінка Asset Comparison
+# Сторінка Asset Comparison - ВИПРАВЛЕНА ВЕРСІЯ
 def show_asset_comparison_page():
     st.markdown("## 📊 Asset Comparison")
     
@@ -1081,18 +1081,29 @@ def show_asset_comparison_page():
             
         with st.spinner("Comparing assets..."):
             comparison_data = []
+            
             for comp_asset in selected_assets:
                 result = run_backtest(comp_asset, lookback, 10000, comparison_strategy, use_ai)
-                if result and 'performance_metrics' in result:
-                    metrics = result['performance_metrics']
+                
+                if result and "error" not in result:
+                    # ВИПРАВЛЕННЯ: Використовуємо правильні поля з відповіді API
+                    total_return = result.get('total_return_percent', 0)
+                    win_rate = result.get('win_rate', 0) * 100  # Конвертуємо у відсотки
+                    total_trades = result.get('total_trades', 0)
+                    final_capital = result.get('final_capital', 0)
+                    total_pnl = result.get('total_pnl', 0)
+                    
+                    # Додаємо AI метрики, якщо доступні
+                    ai_metrics = result.get('ai_metrics', {})
+                    
                     comparison_data.append({
                         'Asset': comp_asset,
-                        'Total Return (%)': metrics.get('total_return', 0) * 100,
-                        'Win Rate (%)': metrics.get('win_rate', 0) * 100,
-                        'Max Drawdown (%)': metrics.get('max_drawdown', 0) * 100,
-                        'Total Trades': result.get('total_trades', 0),
-                        'Final Capital': result.get('final_capital', 0),
-                        'Profit Factor': metrics.get('profit_factor', 0)
+                        'Total Return (%)': total_return,
+                        'Win Rate (%)': win_rate,
+                        'Total Trades': total_trades,
+                        'Final Capital': final_capital,
+                        'Total PnL': total_pnl,
+                        'AI Filter Ratio (%)': ai_metrics.get('filter_ratio', 0) * 100
                     })
             
             if comparison_data:
@@ -1124,10 +1135,42 @@ def show_asset_comparison_page():
                 
                 # Графік порівняння
                 fig = px.bar(comparison_df, x='Asset', y='Total Return (%)', 
-                            title="Asset Performance Comparison")
+                            title="Asset Performance Comparison",
+                            color='Total Return (%)',
+                            color_continuous_scale='RdYlGn')
+                fig.update_layout(height=500)
                 st.plotly_chart(fig, use_container_width=True)
+                
+                # Додаткові графіки
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    fig_winrate = px.bar(comparison_df, x='Asset', y='Win Rate (%)',
+                                       title="Win Rate Comparison",
+                                       color='Win Rate (%)',
+                                       color_continuous_scale='RdYlGn')
+                    fig_winrate.update_layout(height=400)
+                    st.plotly_chart(fig_winrate, use_container_width=True)
+                
+                with col2:
+                    fig_trades = px.bar(comparison_df, x='Asset', y='Total Trades',
+                                      title="Trading Activity",
+                                      color='Total Trades',
+                                      color_continuous_scale='Blues')
+                    fig_trades.update_layout(height=400)
+                    st.plotly_chart(fig_trades, use_container_width=True)
+                    
             else:
-                st.error("No comparison data available")
+                st.error("No comparison data available. Possible reasons:")
+                st.write("- API server is not running")
+                st.write("- Selected assets don't have data")
+                st.write("- Backtest returned errors")
+                
+                # Додаємо діагностику
+                with st.expander("🔍 Debug Information"):
+                    for comp_asset in selected_assets:
+                        result = run_backtest(comp_asset, lookback, 10000, comparison_strategy, use_ai)
+                        st.write(f"**{comp_asset}**: {result}")
 
 # Головна навігація
 if page == "Market Overview":
