@@ -25,7 +25,7 @@ help:
 	@echo "  make clean           - Remove containers and images"
 
 build-%:
-	cd $(CONTEXT) && docker build -t p1-$*:latest -f deployment/docker/$*/Dockerfile .
+	cd $(CONTEXT) && docker build -t p1-$*:2.0 -f deployment/docker/$*/Dockerfile .
 
 build: build-backend build-frontend
 

@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  labels:
+    app: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: p1-frontend:2.0
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8501
+        env:
+          - name: API_BASE_URL
+            valueFrom:
+              configMapKeyRef:
+                name: frontend-configmap   
+                key: api_url
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-svc
+spec:
+  selector:
+    app: frontend
+  ports:
+    - port: 8501
+      targetPort: 8501
+  type: NodePort
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-configmap
+data:
+  api_url: "http://backend-svc:8080"
